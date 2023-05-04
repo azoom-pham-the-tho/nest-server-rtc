@@ -1,0 +1,15 @@
+{
+  "host": "94.237.79.161",
+  "type": "mysql",
+  "port": 33060,
+  "username": "root",
+  "password": "BIyai917L5G5nrHwnQYC1R5S3N8R3iEY",
+  "database": "db",
+  "entities": ["dist/src/database/models/*.js"],
+  "migrations": ["src/database/migrations/*.ts"],
+  "cli": {
+    "migrationsDir": "src/database/migrations",
+    "entitiesDir": "src/database/models"
+  },
+  "seeds": ["dist/src/database/seeder/*.js"]
+}
