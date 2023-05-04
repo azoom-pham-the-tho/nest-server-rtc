@@ -31,6 +31,10 @@
 ```bash
 $ yarn install
 ```
+## Config
+
+register skyway => token
+https://console-webrtc-free.ecl.ntt.com/
 
 ## Running the app
 
