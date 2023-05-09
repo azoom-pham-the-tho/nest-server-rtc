@@ -54,16 +54,45 @@ export class ChatGateway {
     console.log(`disconnect ${client.id} outchat`);
   }
 
-  @SubscribeMessage('chat-to-user')
+  @SubscribeMessage('create-group')
+  async createGroup(
+    @MessageBody() body: any,
+    @ConnectedSocket() client: Socket,
+  ) {
+    const { userId, content } = body;
+    //save message
+  }
+
+  @SubscribeMessage('group-chat')
+  async listGroupChat(@ConnectedSocket() client: Socket) {
+    // list group chat of user and first chat current
+  }
+
+  @SubscribeMessage('add-user-to-group')
+  async addUserToGroup(
+    @MessageBody() body: any,
+    @ConnectedSocket() client: Socket,
+  ) {
+    const { userId, content } = body;
+    //save message
+  }
+
+  @SubscribeMessage('message-chat')
+  async getMessageChat(@ConnectedSocket() client: Socket) {
+    // list group chat of user and first chat current
+  }
+
+  @SubscribeMessage('chat')
   async chatToUser(
     @MessageBody() body: any,
     @ConnectedSocket() client: Socket,
   ) {
-    const { userId, message } = body;
+    const { userId, content } = body;
     //save message
   }
-  @SubscribeMessage('list-group-chat')
-  async listGroupChat(@ConnectedSocket() client: Socket) {
+
+  @SubscribeMessage('delete-message')
+  async deleteMesageChat(@ConnectedSocket() client: Socket) {
     // list group chat of user and first chat current
   }
 }

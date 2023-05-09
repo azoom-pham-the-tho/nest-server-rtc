@@ -9,9 +9,6 @@ export class UsersService {
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Call.name) private callModel: Model<Call>,
   ) {}
-  findUserById(id) {
-    return id;
-  }
 
   createUser(body) {
     body.status = 0;
@@ -31,7 +28,7 @@ export class UsersService {
   }
 
   getUserById(id: any) {
-    return this.userModel.find({ _id: id }, '-pass ');
+    return this.userModel.findOne({ _id: id }, '-pass ');
   }
 
   insertHistory(caller: any) {
