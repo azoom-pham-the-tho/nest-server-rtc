@@ -14,6 +14,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { UserStatusEnum } from 'helpers/enum';
 
 @WebSocketGateway({
+  // namespace: 'call',
+  path: '/call',
   pingInterval: 10000,
   pingTimeout: 2000,
   cors: {
