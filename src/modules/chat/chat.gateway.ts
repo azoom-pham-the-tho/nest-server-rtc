@@ -9,8 +9,6 @@ import {
 import { ChatService } from './chat.service';
 import type { Server, Socket } from 'socket.io';
 import { UsersService } from '@modules/users/users.service';
-import moment from 'moment';
-import { v4 as uuidv4 } from 'uuid';
 import { UserStatusEnum } from 'helpers/enum';
 
 @WebSocketGateway({
@@ -38,8 +36,11 @@ export class ChatGateway {
   async handleConnection(client: Socket) {
     console.log(`connect ${client.id}`);
     const token = client.handshake.headers.authorization;
+    console.log(client['user']);
 
     const user = await this.chatService.verifyToken(token);
+    console.log(user);
+
     if (user) {
       client['user'] = user;
       client.join(`user_${user.id}`);
@@ -59,13 +60,28 @@ export class ChatGateway {
     @MessageBody() body: any,
     @ConnectedSocket() client: Socket,
   ) {
-    const { userId, content } = body;
+    const { name, members } = body;
     //save message
+    await this.chatService.createGroupChat(client['user'].id, name, members);
+    client.emit('create-group');
   }
 
   @SubscribeMessage('group-chat')
   async listGroupChat(@ConnectedSocket() client: Socket) {
     // list group chat of user and first chat current
+    const groupChat = await this.chatService.getListGroupChat(
+      client['user'].id,
+    );
+
+    const group = await Promise.all(
+      groupChat.map(async (group) => {
+        group.members = await this.chatService.getUsers(group.members);
+
+        return group;
+      }),
+    );
+
+    this.wss.sockets.emit('group-chat', group);
   }
 
   @SubscribeMessage('add-user-to-group')
@@ -73,13 +89,29 @@ export class ChatGateway {
     @MessageBody() body: any,
     @ConnectedSocket() client: Socket,
   ) {
-    const { userId, content } = body;
-    //save message
+    const { groupId, userJoin } = body;
+    return await this.chatService.addUserToGroup(
+      groupId,
+      client['user'].id,
+      userJoin,
+    );
   }
 
-  @SubscribeMessage('message-chat')
-  async getMessageChat(@ConnectedSocket() client: Socket) {
+  @SubscribeMessage('message-in-group')
+  async getMessageChat(
+    @MessageBody() body: any,
+    @ConnectedSocket() client: Socket,
+  ) {
+    const { groupId, page } = body;
+    // client.join(groupId);
     // list group chat of user and first chat current
+    const messageChat = await this.chatService.getChatInGroup(
+      groupId,
+      client['user'].id,
+      page,
+    );
+    client.join(groupId);
+    client.emit('message-in-group', messageChat[0]);
   }
 
   @SubscribeMessage('chat')
@@ -87,12 +119,21 @@ export class ChatGateway {
     @MessageBody() body: any,
     @ConnectedSocket() client: Socket,
   ) {
-    const { userId, content } = body;
+    const { groupId, message } = body;
     //save message
+    console.log(body);
+
+    await this.chatService.chatInGroup(groupId, client['user'], message);
+    this.wss.sockets.to(groupId).emit('chat');
   }
 
   @SubscribeMessage('delete-message')
-  async deleteMesageChat(@ConnectedSocket() client: Socket) {
-    // list group chat of user and first chat current
+  async deleteMesageChat(
+    @MessageBody() body: any,
+    @ConnectedSocket() client: Socket,
+  ) {
+    const { groupId, keyMessage } = body;
+    await this.chatService.deleteMessageInGroup(groupId, keyMessage);
+    client.emit('delete-message');
   }
 }

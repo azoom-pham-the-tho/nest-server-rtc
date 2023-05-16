@@ -7,6 +7,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import dotenv from 'dotenv';
 import { UserSchema, User } from 'schemas/user.shema';
 import { CallSchema, Call } from 'schemas/call.schema';
+import { ChatModule } from '@modules/chat/chat.module';
 dotenv.config();
 console.log(process.env.MONGODB_URI);
 
@@ -18,6 +19,7 @@ console.log(process.env.MONGODB_URI);
       { name: Call.name, schema: CallSchema },
     ]),
     CallModule,
+    ChatModule,
     UsersModule,
   ],
   controllers: [AppController],

@@ -1,10 +1,10 @@
 import { UsersService } from '@modules/users/users.service';
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { ChatTypeEnum, GroupChatTypeEnum } from 'helpers/enum';
 import moment from 'moment';
-import { Model } from 'mongoose';
+import mongoose, { Model } from 'mongoose';
 import { Chat, MessageChat } from 'schemas/chat.schema';
 
 @Injectable()
@@ -17,14 +17,40 @@ export class ChatService {
 
   verifyToken(token: string) {
     const auth = token.split(' ')[1];
-    const decoded = this.jwtService.verify(auth, {
-      secret: process.env.JWT_SECRET,
-    });
-    return decoded;
+    try {
+      const decoded = this.jwtService.verify(auth, {
+        secret: process.env.JWT_SECRET,
+      });
+      return decoded;
+    } catch (error) {
+      return new BadRequestException();
+    }
   }
 
   getListGroupChat(userId: string) {
-    return this.chatModel.find({ members: { $in: [userId] } });
+    return this.chatModel.aggregate([
+      { $match: { members: { $in: [userId] } } },
+      {
+        $project: {
+          messages: {
+            $slice: [
+              {
+                $reverseArray: '$messages',
+              },
+              0,
+              1,
+            ],
+          },
+          read: true,
+          name: true,
+          type: true,
+          members: true,
+        },
+      },
+    ]);
+  }
+  getUsers(users: string[]) {
+    return this.usersService.getUsers(users);
   }
 
   createGroupChat(userId: string, name: string, members: string[]) {
@@ -51,10 +77,16 @@ export class ChatService {
     );
   }
 
-  getChatInGroup(groupId: string, page: number = 1, limit: number = 20) {
+  async getChatInGroup(groupId: any, userId: string, page = 0, limit = 50) {
     const skip = page * limit;
-    return this.chatModel.aggregate([
-      { $match: { _id: groupId } },
+    const id = new mongoose.Types.ObjectId(groupId);
+
+    await this.chatModel.updateOne(
+      { _id: groupId },
+      { $addToSet: { read: userId } },
+    );
+    return await this.chatModel.aggregate([
+      { $match: { _id: id, 'messages.isHidden': true } },
       {
         $project: {
           // phân trang trong mảng messgae bị đảo ngược
@@ -67,23 +99,33 @@ export class ChatService {
               limit,
             ],
           },
+          read: true,
         },
       },
     ]);
   }
 
-  chatInGroup(groupId: string, message: MessageChat) {
+  chatInGroup(groupId: string, user: any, message: string) {
+    const messageChat: MessageChat = {
+      content: message,
+      userId: user.id,
+      createdAt: moment().toString(),
+      type: ChatTypeEnum.NORMAL,
+      name: user.name,
+      id: `${user.id}-${moment().unix()}`,
+      isHidden: false,
+    };
     return this.chatModel.updateOne(
       { _id: groupId },
-      { $push: { messages: message } },
+      { $push: { messages: messageChat }, read: [] },
       { upsert: true },
     );
   }
 
   deleteMessageInGroup(groupId: string, keyMessage: string) {
     return this.chatModel.updateOne(
-      { _id: groupId, '$messages.id': keyMessage },
-      { isHidden: true },
+      { _id: groupId, 'messages.id': keyMessage },
+      { $set: { 'messages.$.isHidden': true } },
     );
   }
 }

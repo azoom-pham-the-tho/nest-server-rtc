@@ -12,7 +12,7 @@ export class ChatData {
 }
 
 export class MessageChat {
-  id?: Types.ObjectId;
+  id?: string;
   userId?: string;
   name?: string;
   content: string;
@@ -22,7 +22,7 @@ export class MessageChat {
   deletedAt?: string;
 }
 
-@Schema({ timestamps: { createdAt: 'createdAt' }, collection: 'chat_messages' })
+@Schema({ timestamps: { createdAt: 'createdAt' }, collection: 'chats' })
 export class Chat {
   @Prop({ type: Number, default: GroupChatTypeEnum.NORMAL })
   type: GroupChatTypeEnum;
