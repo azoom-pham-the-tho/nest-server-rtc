@@ -116,7 +116,24 @@ export class ChatService {
       isHidden: false,
     };
     return this.chatModel.updateOne(
-      { _id: groupId },
+      { _id: groupId, type: GroupChatTypeEnum.GROUP },
+      { $push: { messages: messageChat }, read: [] },
+      { upsert: true },
+    );
+  }
+  chatToUser(groupId: string, user: any, message: string) {
+    //mang 2 phan tu chua 2 id
+    const messageChat: MessageChat = {
+      content: message,
+      userId: user.id,
+      createdAt: moment().toString(),
+      type: ChatTypeEnum.NORMAL,
+      name: user.name,
+      id: `${user.id}-${moment().unix()}`,
+      isHidden: false,
+    };
+    return this.chatModel.updateOne(
+      { _id: groupId, type: GroupChatTypeEnum.NORMAL },
       { $push: { messages: messageChat }, read: [] },
       { upsert: true },
     );

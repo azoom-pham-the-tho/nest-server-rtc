@@ -9,7 +9,7 @@ import {
 import { ChatService } from './chat.service';
 import type { Server, Socket } from 'socket.io';
 import { UsersService } from '@modules/users/users.service';
-import { UserStatusEnum } from 'helpers/enum';
+import { GroupChatTypeEnum, UserStatusEnum } from 'helpers/enum';
 
 @WebSocketGateway({
   // namespace: 'chat',
@@ -36,8 +36,6 @@ export class ChatGateway {
   async handleConnection(client: Socket) {
     console.log(`connect ${client.id}`);
     const token = client.handshake.headers.authorization;
-    console.log(client['user']);
-
     const user = await this.chatService.verifyToken(token);
     console.log(user);
 
@@ -81,7 +79,7 @@ export class ChatGateway {
       }),
     );
 
-    this.wss.sockets.emit('group-chat', group);
+    client.emit('group-chat', group);
   }
 
   @SubscribeMessage('add-user-to-group')
@@ -119,11 +117,15 @@ export class ChatGateway {
     @MessageBody() body: any,
     @ConnectedSocket() client: Socket,
   ) {
-    const { groupId, message } = body;
+    const { groupId, message, type } = body;
     //save message
     console.log(body);
-
-    await this.chatService.chatInGroup(groupId, client['user'], message);
+    if (type == GroupChatTypeEnum.GROUP) {
+      await this.chatService.chatInGroup(groupId, client['user'], message);
+    }
+    if (type == GroupChatTypeEnum.NORMAL) {
+      await this.chatService.chatInGroup(groupId, client['user'], message);
+    }
     this.wss.sockets.to(groupId).emit('chat');
   }
 
