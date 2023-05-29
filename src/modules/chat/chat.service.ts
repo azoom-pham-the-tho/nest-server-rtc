@@ -52,6 +52,9 @@ export class ChatService {
   getUsers(users: string[]) {
     return this.usersService.getUsers(users);
   }
+  getUserById(userId: string) {
+    return this.usersService.getUserById(userId);
+  }
 
   createGroupChat(userId: string, name: string, members: string[]) {
     const chat = new this.chatModel();
@@ -81,12 +84,14 @@ export class ChatService {
     const skip = page * limit;
     const id = new mongoose.Types.ObjectId(groupId);
 
+    console.log(id);
+
     await this.chatModel.updateOne(
       { _id: groupId },
       { $addToSet: { read: userId } },
     );
     return await this.chatModel.aggregate([
-      { $match: { _id: id, 'messages.isHidden': true } },
+      { $match: { _id: id } },
       {
         $project: {
           // phân trang trong mảng messgae bị đảo ngược
@@ -121,8 +126,14 @@ export class ChatService {
       { upsert: true },
     );
   }
-  chatToUser(groupId: string, user: any, message: string) {
-    //mang 2 phan tu chua 2 id
+  async chatToUser(groupId: string, user: any, message: string) {
+    const groupChat = await this.chatModel.findOne({
+      $and: [
+        { members: { $in: [groupId] } },
+        { members: { $in: [user.id] } },
+        { type: GroupChatTypeEnum.NORMAL },
+      ],
+    });
     const messageChat: MessageChat = {
       content: message,
       userId: user.id,
@@ -132,11 +143,25 @@ export class ChatService {
       id: `${user.id}-${moment().unix()}`,
       isHidden: false,
     };
-    return this.chatModel.updateOne(
-      { _id: groupId, type: GroupChatTypeEnum.NORMAL },
-      { $push: { messages: messageChat }, read: [] },
-      { upsert: true },
-    );
+    console.log(groupChat?._id);
+
+    if (!groupChat?._id) {
+      const chat = new this.chatModel();
+      chat.members = [user.id, groupId];
+      chat.name = 'user chat';
+      chat.messages = [messageChat];
+      chat.type = GroupChatTypeEnum.NORMAL;
+      await chat.save();
+    } else {
+      await this.chatModel.updateOne(
+        {
+          members: { $in: [groupId, user.id] },
+          type: GroupChatTypeEnum.NORMAL,
+        },
+        { $push: { messages: messageChat }, read: [] },
+        { upsert: true },
+      );
+    }
   }
 
   deleteMessageInGroup(groupId: string, keyMessage: string) {
@@ -144,5 +169,20 @@ export class ChatService {
       { _id: groupId, 'messages.id': keyMessage },
       { $set: { 'messages.$.isHidden': true } },
     );
+  }
+  deleteGroup(groupId: string) {
+    return this.chatModel.deleteOne({ _id: groupId });
+  }
+
+  getGroupOfUserToUser(userId: string, userCurrent: any) {
+    console.log(userId, userCurrent.id);
+
+    return this.chatModel.findOne({
+      $and: [
+        { members: { $in: [userId] } },
+        { members: { $in: [userCurrent.id] } },
+        { type: GroupChatTypeEnum.NORMAL },
+      ],
+    });
   }
 }

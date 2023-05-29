@@ -14,8 +14,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { UserStatusEnum } from 'helpers/enum';
 
 @WebSocketGateway({
-  // namespace: 'call',
-  path: '/call',
+  namespace: 'call',
+  // path: '/call',
   pingInterval: 10000,
   pingTimeout: 2000,
   cors: {
@@ -60,13 +60,13 @@ export class CallGateway {
     );
     //new list user
     const users = await this.usersService.getListUser();
-    this.wss.sockets.emit('get-all-user', users);
+    this.wss.emit('get-all-user', users);
   }
 
   @SubscribeMessage('get-all-user')
   async getAllUser() {
     const users = await this.usersService.getListUser();
-    this.wss.sockets.emit('get-all-user', users);
+    this.wss.emit('get-all-user', users);
   }
 
   @SubscribeMessage('user-call')

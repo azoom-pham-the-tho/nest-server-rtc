@@ -12,8 +12,8 @@ import { UsersService } from '@modules/users/users.service';
 import { GroupChatTypeEnum, UserStatusEnum } from 'helpers/enum';
 
 @WebSocketGateway({
-  // namespace: 'chat',
-  path: '/chat',
+  namespace: 'chat',
+  // path: '/chat',
   pingInterval: 10000,
   pingTimeout: 2000,
   cors: {
@@ -74,7 +74,13 @@ export class ChatGateway {
     const group = await Promise.all(
       groupChat.map(async (group) => {
         group.members = await this.chatService.getUsers(group.members);
-
+        if (group.type == GroupChatTypeEnum.NORMAL) {
+          group.members.map((member) => {
+            if (member._id != client['user'].id) {
+              group.name = member.name;
+            }
+          });
+        }
         return group;
       }),
     );
@@ -94,6 +100,18 @@ export class ChatGateway {
       userJoin,
     );
   }
+  @SubscribeMessage('group-chat-user-to-user')
+  async getGroupChatOfUser(
+    @MessageBody() userId: string,
+    @ConnectedSocket() client: Socket,
+  ) {
+    const group = await this.chatService.getGroupOfUserToUser(
+      userId,
+      client['user'],
+    );
+
+    client.emit('group-chat-user-to-user', group?._id);
+  }
 
   @SubscribeMessage('message-in-group')
   async getMessageChat(
@@ -101,6 +119,8 @@ export class ChatGateway {
     @ConnectedSocket() client: Socket,
   ) {
     const { groupId, page } = body;
+    console.log('message-in-group', body);
+
     // client.join(groupId);
     // list group chat of user and first chat current
     const messageChat = await this.chatService.getChatInGroup(
@@ -108,6 +128,7 @@ export class ChatGateway {
       client['user'].id,
       page,
     );
+
     client.join(groupId);
     client.emit('message-in-group', messageChat[0]);
   }
@@ -118,15 +139,28 @@ export class ChatGateway {
     @ConnectedSocket() client: Socket,
   ) {
     const { groupId, message, type } = body;
-    //save message
     console.log(body);
+
+    //save message
     if (type == GroupChatTypeEnum.GROUP) {
+      console.log('chat in group');
+
       await this.chatService.chatInGroup(groupId, client['user'], message);
     }
     if (type == GroupChatTypeEnum.NORMAL) {
-      await this.chatService.chatInGroup(groupId, client['user'], message);
+      console.log('chat in user');
+      await this.chatService.chatToUser(groupId, client['user'], message);
     }
-    this.wss.sockets.to(groupId).emit('chat');
+    this.wss.to(groupId).emit('chat');
+  }
+
+  @SubscribeMessage('delete-group')
+  async deleteGroupChat(
+    @MessageBody() groupId: string,
+    @ConnectedSocket() client: Socket,
+  ) {
+    await this.chatService.deleteGroup(groupId);
+    client.emit('delete-group');
   }
 
   @SubscribeMessage('delete-message')
